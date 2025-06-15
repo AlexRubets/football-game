@@ -87,6 +87,8 @@
   <ul id="calendarList"></ul>
 
   <div id="champion"></div>
+  <button onclick="resetSeason()">Очистити сезон</button>
+
 
 <script>
   // Команди з прикладами складів (короткі для прикладу)
