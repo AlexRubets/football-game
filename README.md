@@ -304,3 +304,31 @@
 </script>
 </body>
 </html>
+function saveGameState() {
+  localStorage.setItem('leagueStandings', JSON.stringify(standings));
+  localStorage.setItem('calendarData', JSON.stringify(calendar));
+  localStorage.setItem('currentRound', currentRound);
+}
+
+function loadGameState() {
+  const savedTable = localStorage.getItem('leagueStandings');
+  const savedCalendar = localStorage.getItem('calendarData');
+  const savedRound = localStorage.getItem('currentRound');
+  if (savedTable && savedCalendar && savedRound !== null) {
+    standings = JSON.parse(savedTable);
+    calendar = JSON.parse(savedCalendar);
+    currentRound = parseInt(savedRound);
+    renderTable();
+    renderCalendar();
+    if (currentRound >= roundsCount) showChampion();
+  }
+}
+
+function resetSeason() {
+  if (confirm("Ви впевнені, що хочете очистити сезон?")) {
+    localStorage.clear();
+    location.reload();
+  }
+}
+saveGameState();
+loadGameState();
