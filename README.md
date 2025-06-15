@@ -375,3 +375,126 @@ structure = {
 # Перетворення на JSON
 json_output = json.dumps(structure, ensure_ascii=False, indent=2)
 json_output[:1000]  # Показати перші 1000 символів для перевірки
+# Додамо повний JavaScript-код у HTML-файл: автосимуляція сезону, таблиці УПЛ та Першої Ліги,
+# генерація результатів, статистика бомбардирів/воротарів, автоматичне підвищення/виліт
+
+# Спочатку базові змінні, потім структура standings, функції рендеру та симуляції
+
+script_code = """
+let uplTeams = [...Array(16)].map((_, i) => ({
+  name: ["Динамо", "Шахтар", "Кривбас", "Полісся", "Олександрія", "Зоря", "Ворскла",
+         "Чорноморець", "Рух", "Колос", "Оболонь", "ЛНЗ", "Верес", "Маяк Ромни", "Лівий Берег", "Інгулець"][i],
+  pts: 0, gf: 0, ga: 0, wins: 0, draws: 0, losses: 0
+}));
+
+let firstLeagueTeams = [...Array(16)].map((_, i) => ({
+  name: ["Металіст", "Дніпро", "Кудрівка", "Епіцентр", "Суми", "Маріуполь", "Волинь",
+         "Арсенал Київ", "Минай", "ЮКСА", "Буковина", "Чернігів", "Металург Запоріжжя",
+         "Нива Тернопіль", "Полтава", "Прикарпаття"][i],
+  pts: 0, gf: 0, ga: 0
+}));
+
+let round = 0, maxRounds = 30;
+let topScorers = {}, cleanSheets = {};
+
+function simulateMatch(teamA, teamB, isUpl = true) {
+  let goalsA = Math.floor(Math.random() * 4);
+  let goalsB = Math.floor(Math.random() * 4);
+  if (isUpl) updateTable(teamA, teamB, goalsA, goalsB, uplTeams);
+  else updateTable(teamA, teamB, goalsA, goalsB, firstLeagueTeams);
+  return `${teamA.name} ${goalsA} - ${goalsB} ${teamB.name}`;
+}
+
+function updateTable(a, b, gA, gB, table) {
+  a.gf += gA; a.ga += gB;
+  b.gf += gB; b.ga += gA;
+  if (gA > gB) { a.pts += 3; a.wins++; b.losses++; }
+  else if (gA < gB) { b.pts += 3; b.wins++; a.losses++; }
+  else { a.pts += 1; b.pts += 1; a.draws++; b.draws++; }
+
+  // Статистика гравців
+  topScorers[a.name] = (topScorers[a.name] || 0) + gA;
+  topScorers[b.name] = (topScorers[b.name] || 0) + gB;
+  if (gB === 0) cleanSheets[a.name] = (cleanSheets[a.name] || 0) + 1;
+  if (gA === 0) cleanSheets[b.name] = (cleanSheets[b.name] || 0) + 1;
+}
+
+function renderTable(teams, el, isUpl = true) {
+  teams.sort((a, b) => b.pts - a.pts || (b.gf - b.ga) - (a.gf - a.ga));
+  let html = "<table><tr><th>М</th><th>Команда</th><th>І</th><th>В</th><th>Н</th><th>П</th><th>ЗМ</th><th>ПМ</th><th>О</th></tr>";
+  teams.forEach((t, i) => {
+    let cls = "";
+    if (isUpl) {
+      if (i < 2) cls = "ucl";
+      else if (i < 4) cls = "uel";
+      else if (i === 4) cls = "conf";
+      else if (i > 13) cls = "relegated";
+    } else {
+      if (i === 0) cls = "promo1";
+      else if (i === 1) cls = "promo2";
+    }
+    html += `<tr class='${cls}'><td>${i + 1}</td><td>${t.name}</td><td>${t.wins + t.draws + t.losses}</td><td>${t.wins}</td><td>${t.draws}</td><td>${t.losses}</td><td>${t.gf}</td><td>${t.ga}</td><td>${t.pts}</td></tr>`;
+  });
+  html += "</table>";
+  document.getElementById(el).innerHTML = html;
+}
+
+function simulateRound() {
+  let results = "";
+  for (let i = 0; i < uplTeams.length; i += 2) {
+    results += simulateMatch(uplTeams[i], uplTeams[i + 1]) + "<br>";
+  }
+  for (let i = 0; i < firstLeagueTeams.length; i += 2) {
+    simulateMatch(firstLeagueTeams[i], firstLeagueTeams[i + 1], false);
+  }
+  round++;
+  document.getElementById("roundResults").innerHTML = results;
+  renderTable(uplTeams, "uplTable");
+  renderTable(firstLeagueTeams, "firstLeagueTable");
+  if (round === maxRounds) endSeason();
+}
+
+function autoSimulateSeason() {
+  while (round < maxRounds) simulateRound();
+}
+
+function endSeason() {
+  uplTeams.sort((a, b) => b.pts - a.pts || (b.gf - b.ga) - (a.gf - a.ga));
+  firstLeagueTeams.sort((a, b) => b.pts - a.pts);
+  document.getElementById("champion").textContent = uplTeams[0].name;
+
+  let topScorer = Object.entries(topScorers).sort((a, b) => b[1] - a[1])[0];
+  let topKeeper = Object.entries(cleanSheets).sort((a, b) => b[1] - a[1])[0];
+  document.getElementById("topScorer").textContent = topScorer ? topScorer[0] + " (" + topScorer[1] + " голів)" : "—";
+  document.getElementById("topKeeper").textContent = topKeeper ? topKeeper[0] + " (" + topKeeper[1] + " сухих матчів)" : "—";
+
+  // Виліт / підвищення
+  let relegated = uplTeams.slice(-2);
+  let promoted = firstLeagueTeams.slice(0, 2);
+  uplTeams.splice(-2, 2, ...promoted.map(t => ({...t, pts: 0, gf: 0, ga: 0, wins: 0, draws: 0, losses: 0})));
+  firstLeagueTeams.splice(0, 2, ...relegated.map(t => ({...t, pts: 0, gf: 0, ga: 0})));
+}
+
+function resetSeason() {
+  location.reload();
+}
+
+window.onload = () => {
+  renderTable(uplTeams, "uplTable");
+  renderTable(firstLeagueTeams, "firstLeagueTable");
+};
+"""
+
+# Додамо код у HTML-файл
+full_html_path = "/mnt/data/futbolna-liga-ukrainy-full.html"
+
+with open("/mnt/data/futbolna-liga-ukrainy.html", "r", encoding="utf-8") as f:
+    base_html = f.read()
+
+# Вставити скрипт перед </script>
+final_html = base_html.replace("// ... ТУТ ДАЛІ ПІДІДЕ УВЕСЬ JAVASCRIPT-КОД ГРИ ...", script_code)
+
+with open(full_html_path, "w", encoding="utf-8") as f:
+    f.write(final_html)
+
+full_html_path
